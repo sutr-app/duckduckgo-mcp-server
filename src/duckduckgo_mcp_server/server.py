@@ -67,7 +67,8 @@ class DuckDuckGoSearcher:
         return "\n".join(output)
 
     async def search(
-        self, query: str, ctx: Context, max_results: int = 10
+        self, query: str, ctx: Context, max_results: int = 10, 
+        time_period: Optional[str] = None, language: Optional[str] = None
     ) -> List[SearchResult]:
         try:
             # Apply rate limiting
@@ -79,6 +80,16 @@ class DuckDuckGoSearcher:
                 "b": "",
                 "kl": "",
             }
+            
+            # Add time period parameter if specified
+            # df=d: past day, df=w: past week, df=m: past month, df=y: past year
+            if time_period:
+                data["df"] = time_period
+                
+            # Add language parameter if specified
+            # Example: kl=ja-jp (Japanese), kl=en-us (English US), kl=de-de (German)
+            if language:
+                data["kl"] = language
 
             await ctx.info(f"Searching DuckDuckGo for: {query}")
 
@@ -212,17 +223,25 @@ fetcher = WebContentFetcher()
 
 
 @mcp.tool()
-async def search(query: str, ctx: Context, max_results: int = 10) -> str:
+async def search(
+    query: str, 
+    ctx: Context, 
+    max_results: int = 10, 
+    time_period: Optional[str] = None, 
+    language: Optional[str] = None
+) -> str:
     """
     Search DuckDuckGo and return formatted results.
 
     Args:
         query: The search query string
         max_results: Maximum number of results to return (default: 10)
+        time_period: Optional time filter ('d' for day, 'w' for week, 'm' for month, 'y' for year)
+        language: Optional language filter (e.g., 'ja-jp' for Japanese, 'en-us' for English US)
         ctx: MCP context for logging
     """
     try:
-        results = await searcher.search(query, ctx, max_results)
+        results = await searcher.search(query, ctx, max_results, time_period, language)
         return searcher.format_results_for_llm(results)
     except Exception as e:
         traceback.print_exc(file=sys.stderr)

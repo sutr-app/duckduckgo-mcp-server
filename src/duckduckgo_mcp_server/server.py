@@ -66,6 +66,24 @@ class DuckDuckGoSearcher:
 
         return "\n".join(output)
 
+    def format_results_as_json(self, results: List[SearchResult]) -> str:
+        """Format results as a JSON string for structured data processing"""
+        import json
+        
+        if not results:
+            return json.dumps({"results": [], "message": "No results found"})
+            
+        json_results = []
+        for result in results:
+            json_results.append({
+                "position": result.position,
+                "title": result.title,
+                "url": result.link,
+                "snippet": result.snippet
+            })
+            
+        return json.dumps({"results": json_results, "count": len(json_results)}, ensure_ascii=False)
+
     async def search(
         self, query: str, ctx: Context, max_results: int = 10, 
         time_period: Optional[str] = None, language: Optional[str] = None
@@ -228,7 +246,8 @@ async def search(
     ctx: Context, 
     max_results: int = 10, 
     time_period: Optional[str] = None, 
-    language: Optional[str] = None
+    language: Optional[str] = None,
+    response_format: str = "text"
 ) -> str:
     """
     Search DuckDuckGo and return formatted results.
@@ -238,14 +257,24 @@ async def search(
         max_results: Maximum number of results to return (default: 10)
         time_period: Optional time filter ('d' for day, 'w' for week, 'm' for month, 'y' for year)
         language: Optional language filter (e.g., 'ja-jp' for Japanese, 'en-us' for English US)
+        response_format: Format of the response - 'text' for human-readable text or 'json' for JSON format
         ctx: MCP context for logging
     """
     try:
         results = await searcher.search(query, ctx, max_results, time_period, language)
-        return searcher.format_results_for_llm(results)
+        
+        if response_format.lower() == "json":
+            return searcher.format_results_as_json(results)
+        else:
+            return searcher.format_results_for_llm(results)
     except Exception as e:
         traceback.print_exc(file=sys.stderr)
-        return f"An error occurred while searching: {str(e)}"
+        
+        if response_format.lower() == "json":
+            import json
+            return json.dumps({"error": str(e), "results": []})
+        else:
+            return f"An error occurred while searching: {str(e)}"
 
 
 @mcp.tool()
